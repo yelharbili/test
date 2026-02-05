@@ -1,0 +1,10 @@
+[
+    {
+        "route": "products",
+        "package": "MY_APP_PKG",
+        "procedure": "GET_POS_PRODUCTS",
+        "parameters": [
+            "p_condition"
+        ]
+    }
+]

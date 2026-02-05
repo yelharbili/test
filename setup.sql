@@ -1,0 +1,67 @@
+-- Nettoyage au cas où
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE MY_TABLE CASCADE CONSTRAINTS';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+BEGIN
+    EXECUTE IMMEDIATE 'DROP SEQUENCE MY_TABLE_SEQ';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+-- 1. Création de la table (Compatible Oracle 11g)
+CREATE TABLE MY_TABLE (
+    ID NUMBER PRIMARY KEY,
+    NAME VARCHAR2(255),
+    DESCRIPTION VARCHAR2(500),
+    STATUS VARCHAR2(50)
+);
+
+-- 2. Séquence et Trigger pour l'auto-incrément (Oracle 11g style)
+CREATE SEQUENCE MY_TABLE_SEQ START WITH 1 INCREMENT BY 1;
+
+CREATE OR REPLACE TRIGGER MY_TABLE_TRIG
+BEFORE INSERT ON MY_TABLE
+FOR EACH ROW
+BEGIN
+  IF :new.ID IS NULL THEN
+    SELECT MY_TABLE_SEQ.NEXTVAL INTO :new.ID FROM dual;
+  END IF;
+END;
+/
+
+-- 3. Insertion de données de test
+INSERT INTO MY_TABLE (NAME, DESCRIPTION, STATUS) VALUES ('Produit A', 'Description A', 'ACTIVE');
+INSERT INTO MY_TABLE (NAME, DESCRIPTION, STATUS) VALUES ('Produit B', 'Description B', 'INACTIVE');
+INSERT INTO MY_TABLE (NAME, DESCRIPTION, STATUS) VALUES ('Produit C', 'Description C', 'ACTIVE');
+COMMIT;
+
+-- 4. Création du Package (Header)
+CREATE OR REPLACE PACKAGE MY_APP_PKG AS
+    PROCEDURE GET_POS_PRODUCTS(
+        p_condition IN VARCHAR2 DEFAULT NULL,
+        p_cursor OUT SYS_REFCURSOR
+    );
+END MY_APP_PKG;
+/
+
+-- 5. Création du Package Body
+CREATE OR REPLACE PACKAGE BODY MY_APP_PKG AS
+    PROCEDURE GET_POS_PRODUCTS(
+        p_condition IN VARCHAR2 DEFAULT NULL,
+        p_cursor OUT SYS_REFCURSOR
+    ) IS
+    BEGIN
+        IF p_condition IS NOT NULL AND LENGTH(p_condition) > 0 THEN
+            OPEN p_cursor FOR
+                SELECT * FROM MY_TABLE WHERE STATUS = p_condition;
+        ELSE
+            OPEN p_cursor FOR
+                SELECT * FROM MY_TABLE;
+        END IF;
+    END GET_POS_PRODUCTS;
+END MY_APP_PKG;
+/
